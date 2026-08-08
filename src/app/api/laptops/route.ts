@@ -1,26 +1,31 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { laptopsData } from '@/lib/data'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const category = searchParams.get('category')
   const search = searchParams.get('search')
 
-  const where: any = {}
-  if (category && category !== 'all') where.category = category
-  if (search) {
-    where.OR = [
-      { name: { contains: search, mode: 'insensitive' } },
-      { brand: { contains: search, mode: 'insensitive' } },
-    ]
+  let laptops = [...laptopsData]
+
+  if (category && category !== 'all') {
+    laptops = laptops.filter(l => l.category === category)
   }
 
-  const laptops = await prisma.laptop.findMany({ where, orderBy: { createdAt: 'desc' } })
+  if (search) {
+    const s = search.toLowerCase()
+    laptops = laptops.filter(l =>
+      l.name.toLowerCase().includes(s) || l.brand.toLowerCase().includes(s)
+    )
+  }
+
   return NextResponse.json(laptops)
 }
 
 export async function POST(request: Request) {
   const body = await request.json()
-  const laptop = await prisma.laptop.create({ data: body })
+  const newId = Math.max(...laptopsData.map(l => l.id)) + 1
+  const laptop = { ...body, id: newId }
+  laptopsData.push(laptop)
   return NextResponse.json(laptop, { status: 201 })
 }
